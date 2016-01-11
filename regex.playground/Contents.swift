@@ -2,29 +2,20 @@
 
 import AppKit
 
-class RegexLiteral {
 
-    var isPostfixOperatorSet: Bool = false
-    let foundationRegex: NSRegularExpression
+
+class RegexLiteral : NSRegularExpression {
     
-    init(pattern: String, options: RegexLiteralOptions, postfix:Bool) throws {
-        do {
-            try foundationRegex = NSRegularExpression(pattern: pattern, options: options.opt)
-        } catch let err {
-            foundationRegex = NSRegularExpression()
-            throw err
-        }
-        isPostfixOperatorSet = postfix
+    override init(pattern: String, options: NSRegularExpressionOptions) throws {
+        try super.init(pattern: pattern, options: options)
     }
-   
-    init(pattern: String, options: NSRegularExpressionOptions, postfix:Bool) throws {
-        do {
-            try foundationRegex = NSRegularExpression(pattern: pattern, options: options)
-        } catch let err {
-            foundationRegex = NSRegularExpression()
-            throw err
-        }
-        isPostfixOperatorSet = postfix
+    
+    init(pattern: String, options: RegexLiteralOptions) throws {
+            try  super.init(pattern: pattern, options: options.opt)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
     }
     
     enum SyntaxError: ErrorType {
@@ -114,7 +105,9 @@ extension RegexLiteral.RegexLiteralOptions {
     }
 }
 
-
+class MalformedRegexLiteral : RegexLiteral {
+    
+}
 
 
 
@@ -122,74 +115,55 @@ let syntaxMSG = "Missing postfix operator on attempted regex-literal constructio
 
 
 prefix operator / {}
-prefix func / (reg:RegexLiteral) throws -> RegexLiteral {
-    guard reg.isPostfixOperatorSet else {
-        throw RegexLiteral.SyntaxError.MissingPostfix(syntaxMSG + " \(reg.foundationRegex.pattern)")
-    }
-    print ("prefix func / (reg:RegexLiteral) -> RegexLiteral?")
-    return reg
+prefix func / (reg:MalformedRegexLiteral) -> RegexLiteral {
+    return reg as RegexLiteral
 }
 
-prefix func / (reg:RegexLiteral) -> RegexLiteral? {
-    guard reg.isPostfixOperatorSet else {
-        return nil
-    }
-    print ("prefix func / (reg:RegexLiteral) -> RegexLiteral?")
-    return reg
-}
 postfix operator / {}
-postfix func / (str:String) -> RegexLiteral.RegexLiteralOptions -> RegexLiteral {
-    print ("postfix func / (str:String) -> RegexLiteral")
-        return { option in return try! RegexLiteral(pattern: str, options: option, postfix: true) }
+postfix func / (str:String) -> RegexLiteral.RegexLiteralOptions -> MalformedRegexLiteral {
+        return { option in return try! MalformedRegexLiteral(pattern: str, options: option) }
 }
 
-postfix func / (str:String) -> NSRegularExpressionOptions -> RegexLiteral {
-    print ("postfix func / (str:String) -> RegexLiteral")
-        return { option in return try! RegexLiteral(pattern: str, options: option, postfix: true) }
+postfix func / (str:String) -> NSRegularExpressionOptions -> MalformedRegexLiteral {
+        return { option in return try! MalformedRegexLiteral(pattern: str, options: option) }
 }
 
-postfix func / (str:String) -> Character -> RegexLiteral {
-    print ("postfix func / (str:String) -> RegexLiteral")
-    return { option in return try! RegexLiteral(pattern: str, options: RegexLiteral.RegexLiteralOptions(char: option), postfix: true) }
+postfix func / (str:String) -> MalformedRegexLiteral {
+    return try! MalformedRegexLiteral(pattern: str, options:.g)
 }
 
-postfix func / (str:String) -> RegexLiteral {
-    print ("postfix func / (str:String) -> RegexLiteral")
-    return try! RegexLiteral(pattern: str, options:.g, postfix: true)
-}
+let a:RegexLiteral = /"(\\./a)"/ (.g)
 
-let a:RegexLiteral? = /"(\\./a)"/ (.g)
+    typealias Index = String.CharacterView.Index
 
+    infix operator =~ {associativity right precedence 0}
 
-
-
-//    infix operator =~ {associativity right precedence 0}
-//
-//    func =~ (input: String, pattern: RegexLiteral) -> Bool {
-//       return pattern.test(input)
-//    }
-//
-//    let b = "st" =~ /"string"/ ("g")
-//    print (b)
-//
-//
-//    extension String {
-//       func split(str:String) -> [String] {
-//          return  self.componentsSeparatedByString(str)
-//       }
-//    }
-//
-//    prefix operator % {}
-//    prefix func % (str:String){
-//       let task = NSTask()
-//
-//       let args = str.split(" ")
-//
-//       task.launchPath = "/bin/sh"
-//       task.arguments = args
-//       task.launch()
-//    }
+    func =~ (str: String, regex: RegexLiteral) -> Range<Index>? {
+        guard let match = str.rangeOfString(regex.pattern, options:.RegularExpressionSearch, range: nil, locale: nil) else {
+            return nil
+        }
+        return match
+    }
 
 
+let testttt = [3,2].map { print($0); $0 + 1 }
 
+    let b = "string.m" =~ /"(\\.m)$"/
+    let c = "g.m" =~ /"(\\.m)$"/
 
+    extension String {
+       func split(str:String) -> [String] {
+          return  self.componentsSeparatedByString(str)
+       }
+    }
+
+    prefix operator % {}
+    prefix func % (str:String) {
+       let task = NSTask()
+
+       let args = str.split(" ")
+
+       task.launchPath = "/bin/sh"
+       task.arguments = args
+       task.launch()
+    }
